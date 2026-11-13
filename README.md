@@ -1,38 +1,72 @@
 # Covert Channel Detection Lab
 
-A small, offline lab for learning what unusual DNS, ICMP, and HTTP traffic can look like to a defender. It generates **synthetic records**, scores them with explainable rules, and prints a short report. It never opens a socket, captures packets, reads private files, or sends data anywhere.
+An offline framework for studying how covert-channel-shaped data appears to defenders. It can encode and reconstruct bytes through inspectable DNS, ICMP, HTTP-header, and document-metadata **models**, then measure bandwidth, latency, overhead, and how often transparent detection rules flag the generated records.
 
-The examples are deliberately simple. They are useful for discussing signals and false positives, not for claiming that a real DLP product will catch every covert channel.
+Every channel stops at a Python object. The project never opens a socket, constructs a raw packet, sends an HTTP request, edits a real document or image, reads payload files, or adapts itself to avoid a detector.
 
-## Try it
+## Quick start
 
 Python 3.10 or newer is enough; there are no third-party dependencies.
 
 ```sh
 python -m covert_lab
+python -m covert_lab simulate --channel dns --text "authorized lab sample"
+python -m covert_lab simulate --channel dns --dns-record-type MX --scheme hex
+python -m covert_lab simulate --channel icmp --scheme hex --profile variable --json
+python -m covert_lab compare --bytes 512
+python -m covert_lab detect --input examples/events.jsonl
 python -m unittest discover -s tests -v
 ```
 
-Pass `--json` for a machine-readable report or `--input path/to/events.jsonl` to score your own **sanitized** records. Each JSON line needs a `kind` (`dns`, `icmp`, or `http`) and the fields shown in `examples/events.jsonl`. The lab does not send these records over the network.
+Running the module with no command prints a comparison of every channel.
 
-## What the rules look for
+## Implemented capabilities
 
-| Record | Signals | Common innocent explanations |
-| --- | --- | --- |
-| DNS | Long or high-entropy labels, many distinct subdomains of one domain | CDNs, tracking links, service discovery |
-| ICMP | Large payloads or unusually regular intervals | Diagnostics, monitoring probes |
-| HTTP | Long or high-entropy header values | Tokens, tracing headers, application metadata |
+| Area | What the lab implements |
+| --- | --- |
+| Reversible encodings | Base32, hexadecimal, and URL-safe Base64 with binary round-trip tests |
+| DNS | Chunked subdomain records with sequence numbers and simulated A, AAAA, TXT, or MX metadata |
+| ICMP | Inspectable echo-request envelopes with identifiers, sequence numbers, and payload-size accounting |
+| HTTP | Explicit `X-Covert-Lab` header values; no browser imitation and no requests |
+| File metadata | An in-memory metadata-property model; no JPEG, PDF, Office, or LSB file modification |
+| Pacing | Burst, steady, and deterministic variable timestamp profiles; no sleeping or transmission |
+| Detection | Long/high-entropy values, DNS fan-out, ICMP size/timing, and unusual metadata properties |
+| Measurement | Unit count, simulated duration, useful bandwidth, encoding overhead, detection ratio, and round-trip integrity |
+| Evaluation | Labeled samples, precision/recall, per-finding reasons, and cross-channel comparisons |
 
-The score is a teaching aid, not a verdict. Inspect the reasons and surrounding context before investigating a host. The included sample has benign and suspicious-looking synthetic records so you can see both outcomes.
+The frames are deliberately marked as lab data. This makes the mechanics and detector behavior easy to inspect without producing a deployable tunneling tool.
+
+## How a run works
+
+1. The selected channel splits input bytes into bounded chunks.
+2. Each chunk is encoded and wrapped in a numbered, human-readable frame.
+3. A pacing profile assigns synthetic timestamps.
+4. The detector scores the resulting records and records its reasons.
+5. Frames are decoded, reordered by sequence, and checked against the original bytes.
+6. The report compares input size, framed size, duration, throughput, and detector results.
+
+See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for the metrics and experiment design, and [docs/DEFENSIVE_GUIDE.md](docs/DEFENSIVE_GUIDE.md) for investigation context, evaluation steps, controls, and ATT&CK references.
+
+## Sanitized event input
+
+`detect` accepts newline-delimited JSON. Each line needs `kind`, `source`, and `timestamp`; it may also include `value`, `payload_size`, and `expected`.
+
+```json
+{"kind":"dns","source":"demo","timestamp":0,"value":"docs.example.org","expected":false}
+```
+
+Allowed kinds are `dns`, `icmp`, `http`, and `metadata`. Use exported or hand-built metadata only; this project does not capture traffic.
 
 ## Project layout
 
-- `covert_lab/models.py`: validation and record types
-- `covert_lab/detectors.py`: transparent scoring rules
-- `covert_lab/samples.py`: reproducible synthetic examples
-- `covert_lab/report.py`: summary metrics
+- `covert_lab/encoding.py`: reversible text encodings
+- `covert_lab/channels.py`: in-memory channel frames and decoders
+- `covert_lab/simulation.py`: pacing, orchestration, and measurement
+- `covert_lab/detectors.py`: explainable detection rules
+- `covert_lab/report.py`: labeled detection metrics
 - `covert_lab/__main__.py`: command-line interface
+- `tests/test_lab.py`: round-trip, validation, detector, and measurement tests
 
 ## Scope
 
-This project supports authorized defensive training. It intentionally excludes live tunneling, exfiltration, stealth timing, adaptive evasion, and interception bypass. For real assessments, use an approved test plan and your organization's monitoring data.
+This project is for authorized defensive training and reproducible classroom experiments. It intentionally excludes live tunneling, packet transmission, browser impersonation, interception bypass, real-file steganography, adaptive evasion, and monitoring-aware behavior changes.
