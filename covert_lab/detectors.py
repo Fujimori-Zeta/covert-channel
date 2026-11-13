@@ -65,10 +65,17 @@ def analyze(events: list[Event]) -> list[Finding]:
                 reasons.append("large ICMP payload")
             if event.source in regular_icmp:
                 reasons.append("regular ICMP timing")
-        else:
+        elif event.kind == "http":
             if len(event.value) > 120:
                 reasons.append("long HTTP header value")
             if len(event.value) >= 40 and entropy(event.value) >= 4.5:
                 reasons.append("high-entropy HTTP header value")
+        else:
+            if event.value.startswith("lab_part_"):
+                reasons.append("unusual synthetic metadata property")
+            if len(event.value) > 120:
+                reasons.append("large metadata value")
+            if len(event.value) >= 40 and entropy(event.value) >= 4.5:
+                reasons.append("high-entropy metadata value")
         findings.append(Finding(event, len(reasons), tuple(reasons)))
     return findings

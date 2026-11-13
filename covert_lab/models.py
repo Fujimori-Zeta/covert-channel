@@ -18,8 +18,8 @@ class Event:
         if not isinstance(raw, dict):
             raise ValueError("each record must be a JSON object")
         kind = raw.get("kind")
-        if kind not in {"dns", "icmp", "http"}:
-            raise ValueError("kind must be dns, icmp, or http")
+        if kind not in {"dns", "icmp", "http", "metadata"}:
+            raise ValueError("kind must be dns, icmp, http, or metadata")
         source = raw.get("source")
         if not isinstance(source, str) or not source.strip():
             raise ValueError("source must be a nonempty string")
@@ -37,3 +37,16 @@ class Event:
         if not isinstance(expected, bool):
             raise ValueError("expected must be a boolean")
         return cls(kind, source.strip(), timestamp, value, size, expected)
+
+
+@dataclass(frozen=True)
+class Frame:
+    """One inspectable unit in an offline channel simulation."""
+
+    channel: str
+    sequence: int
+    total: int
+    timestamp: float
+    wire_value: str
+    payload_size: int
+    metadata: dict[str, str]
