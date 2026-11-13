@@ -1,0 +1,3 @@
+{"kind":"dns","source":"demo","timestamp":0,"value":"docs.example.org","expected":false}
+{"kind":"http","source":"demo","timestamp":1,"value":"Mozilla/5.0 (Training Browser)","expected":false}
+{"kind":"icmp","source":"demo","timestamp":2,"payload_size":32,"expected":false}
